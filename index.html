@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>창현고 물품 품의 메이커</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --navy:#16284a; --navy2:#22396a; --mint:#1fa88a; --mint-bg:#e6f6f2;
+  --amber:#f2b134; --bg:#f3f5f9; --card:#fff; --line:#dde2ec; --text:#1c2333; --sub:#667089; --danger:#d2455a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',system-ui,sans-serif;line-height:1.55}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 80px}
+header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;padding:36px 0 84px}
+header .wrap{padding-bottom:0}
+.tag{display:inline-block;font-size:12px;letter-spacing:.12em;background:rgba(255,255,255,.14);padding:4px 10px;border-radius:99px;margin-bottom:12px}
+h1{margin:0 0 8px;font-size:clamp(26px,5vw,38px);font-weight:900}
+header p{margin:0;color:#c9d4ee;max-width:640px}
+.summary{margin-top:-56px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.sum{background:var(--card);border-radius:14px;padding:16px 18px;box-shadow:0 6px 18px rgba(22,40,74,.1)}
+.sum small{color:var(--sub);font-size:13px}
+.sum b{display:block;font-size:clamp(18px,3.4vw,26px);font-weight:900;margin-top:2px}
+.sum.accent b{color:var(--mint)}
+.steps{display:flex;gap:8px;margin:22px 0 8px;flex-wrap:wrap}
+.steps span{font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:99px;padding:5px 12px;color:var(--sub)}
+.steps span i{font-style:normal;color:var(--mint);font-weight:700;margin-right:5px}
+section{background:var(--card);border-radius:16px;padding:22px;margin-top:18px;border:1px solid var(--line)}
+section h2{margin:0 0 4px;font-size:19px}
+section h2 em{font-style:normal;color:#fff;background:var(--navy);border-radius:8px;padding:1px 9px;margin-right:8px;font-size:14px}
+.hint{color:var(--sub);font-size:13.5px;margin:0 0 14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.box{border:1.5px dashed var(--line);border-radius:12px;padding:14px;background:#fafbfd}
+.box h3{margin:0 0 8px;font-size:15px}
+.drop{cursor:pointer;text-align:center;padding:22px 8px;color:var(--sub);font-size:14px;border-radius:10px;background:#fff;border:1px solid var(--line)}
+.drop:hover{border-color:var(--mint);color:var(--mint)}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.thumbs div{position:relative}
+.thumbs img{width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.thumbs button{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;border:0;background:var(--danger);color:#fff;font-size:11px;cursor:pointer;padding:0}
+textarea{width:100%;min-height:92px;border:1px solid var(--line);border-radius:10px;padding:9px;font:inherit;font-size:13.5px;resize:vertical}
+button.btn,label.btn{display:inline-block;border:0;border-radius:10px;padding:9px 14px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;background:var(--navy);color:#fff}
+button.btn:hover,label.btn:hover{background:var(--navy2)}
+button.btn:disabled{background:#b9c0d0;cursor:not-allowed}
+.btn.mint{background:var(--mint)} .btn.mint:hover{background:#18917a}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)} .btn.ghost:hover{background:#f0f3f9}
+.btn.danger{background:#fff;color:var(--danger);border:1px solid #f0c4cb}
+.btn.block{width:100%;margin-top:6px}
+.opts{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:end}
+.opts label{font-size:13px;color:var(--sub);display:block}
+select,input[type=number],input[type=text],input[type=password]{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 9px;font:inherit;font-size:14px;background:#fff}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;min-width:860px;font-size:13.5px}
+th{background:#eef1f7;text-align:left;padding:9px 8px;font-size:12.5px;color:var(--sub);white-space:nowrap}
+td{border-top:1px solid var(--line);padding:4px 5px}
+td input[type=text],td input[type=number]{border:1px solid transparent;background:transparent;padding:6px}
+td input:focus{border-color:var(--mint);background:#fff;outline:0}
+td.num{text-align:right}
+td.amt{text-align:right;font-weight:700;white-space:nowrap;padding-right:10px}
+tr.locked td{background:var(--mint-bg)}
+.up{color:var(--mint);font-size:11.5px}
+tfoot td{font-weight:900;background:#f7f9fc;padding:10px}
+.empty{text-align:center;color:var(--sub);padding:28px}
+.note{font-size:12.5px;color:var(--sub);margin-top:10px}
+.keybox{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.keybox input{flex:1;min-width:200px}
+#status{font-size:13px;margin-top:8px;min-height:20px}
+#status.err{color:var(--danger)} #status.ok{color:var(--mint)}
+footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
+@media(max-width:760px){.grid3,.opts{grid-template-columns:1fr}.summary{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <span class="tag">PURCHASE DRAFT · 창현고등학교</span>
+    <h1>창현고 물품 품의 메이커</h1>
+    <p>장바구니 캡처, 쇼핑몰 복사 텍스트, 엑셀 파일을 품목내역으로 정리하고 가격 변동에 대비한 여유분까지 배분해 드려요.</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="summary">
+    <div class="sum"><small>현재 합계</small><b id="sCur">0원</b></div>
+    <div class="sum"><small>추가 배정</small><b id="sExtra">0원</b></div>
+    <div class="sum accent"><small>예정 합계</small><b id="sExp">0원</b></div>
+  </div>
+
+  <div class="steps">
+    <span><i>1</i>자료 넣기</span><span><i>2</i>여유 설정</span><span><i>3</i>확인 후 엑셀 다운로드</span>
+  </div>
+
+  <section>
+    <h2><em>1</em>자료 넣기</h2>
+    <p class="hint">세 가지 방법 중 편한 것을 쓰세요. 캡처·텍스트 분석에는 Gemini API 키가 필요해요(내 브라우저에만 저장됩니다).</p>
+    <div class="keybox">
+      <input type="password" id="apiKey" placeholder="Gemini API 키 붙여넣기" autocomplete="off">
+      <button class="btn ghost" id="keySave">키 저장</button>
+      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="font-size:13px">키 발급받기 ↗</a>
+    </div>
+    <div class="grid3">
+      <div class="box">
+        <h3>① 장바구니 캡처</h3>
+        <div class="drop" id="drop">클릭해서 선택 또는 Ctrl+V 붙여넣기<br><small>최대 6장</small></div>
+        <input type="file" id="imgFile" accept="image/*" multiple hidden>
+        <div class="thumbs" id="thumbs"></div>
+        <button class="btn block" id="runImg" disabled>캡처 분석하기</button>
+      </div>
+      <div class="box">
+        <h3>② 텍스트 붙여넣기</h3>
+        <textarea id="txt" placeholder="쇼핑몰 장바구니에서 복사한 글을 붙여넣으세요"></textarea>
+        <button class="btn block" id="runTxt">텍스트 분석하기</button>
+      </div>
+      <div class="box">
+        <h3>③ 엑셀 업로드</h3>
+        <p class="hint" style="margin-bottom:10px">품명·규격·수량·단위·단가 열이 있으면 양식이 달라도 읽어요.</p>
+        <label class="btn mint block" style="text-align:center">엑셀 파일 선택<input type="file" id="xlsFile" accept=".xlsx,.xls" hidden></label>
+      </div>
+    </div>
+    <div id="status"></div>
+  </section>
+
+  <section>
+    <h2><em>2</em>여유 설정</h2>
+    <p class="hint">가격이 조금 오르더라도 구매할 수 있도록, 예상 단가에 여유를 얹어 배분해요. 고정(🔒)한 품목은 건드리지 않아요.</p>
+    <div class="opts">
+      <div><label>여유 방식</label>
+        <select id="mode"><option value="fixed">정액 추가</option><option value="round">품목별 비율 올림</option></select></div>
+      <div><label id="valLabel">여유값 (원)</label><input type="number" id="val" value="0" min="0"></div>
+      <div><label>배분 방식</label>
+        <select id="dist"><option value="prop">금액 비율대로</option><option value="high">고가 품목 우선</option><option value="equal">품목별 균등</option></select></div>
+      <div><label>금액 단위</label>
+        <select id="unit"><option value="10">10원</option><option value="100" selected>100원</option><option value="1000">1,000원</option><option value="10000">10,000원</option></select></div>
+    </div>
+    <div style="margin-top:14px"><button class="btn mint" id="apply">✓ 적용하기</button>
+      <button class="btn ghost" id="undo">여유 되돌리기</button></div>
+  </section>
+
+  <section id="items">
+    <h2><em>3</em>품목내역</h2>
+    <p class="hint">칸을 눌러 바로 고칠 수 있어요. 예상 단가를 직접 고치면 자동으로 고정돼요.</p>
+    <div class="toolbar">
+      <button class="btn ghost" id="merge">⊕ 선택 항목 묶기</button>
+      <button class="btn ghost" id="addRow">＋ 행 추가</button>
+      <button class="btn danger" id="clear">✕ 전체 초기화</button>
+      <button class="btn mint" id="download" style="margin-left:auto">↓ 엑셀 다운로드</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>묶기</th><th>#</th><th>내용</th><th>S2B번호</th><th>규격</th><th>수량</th><th>단위</th><th>현재 단가</th><th>예상 단가</th><th>예상 금액</th><th>고정</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot><tr><td colspan="9" style="text-align:right">예정 합계</td><td class="amt" id="fTotal">0원</td><td colspan="2"></td></tr></tfoot>
+      </table>
+    </div>
+    <p class="note">다운로드한 엑셀은 S2B 품목내역 화면의 <b>파일 ↑</b> 버튼으로 올리세요. 수수료 열은 비워서 내려가요.</p>
+  </section>
+  <footer>창현고 물품 품의 메이커 · 입력한 자료는 이 브라우저에만 저장돼요</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
+const num = v => { const n = parseFloat(String(v ?? '').replace(/[^\d.-]/g, '')); return isNaN(n) ? 0 : n; };
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = { get(k, d){ try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+                set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+let rows = store.get('chpm_rows', []);
+let images = [];
+let uid = Date.now();
+const save = () => store.set('chpm_rows', rows);
+const newRow = (o = {}) => ({ id: ++uid, name:'', s2b:'', spec:'', qty:1, unit:'개', price:0, exp:null, locked:false, sel:false, ...o });
+const expOf = r => r.exp == null ? r.price : r.exp;
+
+function status(msg, cls = ''){ const s = $('status'); s.textContent = msg; s.className = cls; }
+
+/* ---------- 표 렌더 ---------- */
+function render(){
+  const tb = $('tbody');
+  if(!rows.length){ tb.innerHTML = '<tr><td colspan="12" class="empty">아직 품목이 없어요. 위에서 자료를 넣거나 행을 추가하세요.</td></tr>'; }
+  else tb.innerHTML = rows.map((r, i) => {
+    const up = expOf(r) - r.price;
+    return `<tr class="${r.locked ? 'locked' : ''}" data-id="${r.id}">
+      <td><input type="checkbox" data-f="sel" ${r.sel ? 'checked' : ''}></td>
+      <td>${i + 1}</td>
+      <td><input type="text" data-f="name" value="${esc(r.name)}" style="min-width:180px"></td>
+      <td><input type="text" data-f="s2b" value="${esc(r.s2b)}" style="width:90px"></td>
+      <td><input type="text" data-f="spec" value="${esc(r.spec)}" style="width:100px"></td>
+      <td><input type="number" data-f="qty" value="${r.qty}" min="0" style="width:64px"></td>
+      <td><input type="text" data-f="unit" value="${esc(r.unit)}" style="width:50px"></td>
+      <td><input type="number" data-f="price" value="${r.price}" min="0" style="width:100px"></td>
+      <td><input type="number" data-f="exp" value="${expOf(r)}" min="0" style="width:100px">${up > 0 ? `<div class="up">+${up.toLocaleString()}</div>` : ''}</td>
+      <td class="amt">${won(expOf(r) * r.qty)}</td>
+      <td><input type="checkbox" data-f="locked" ${r.locked ? 'checked' : ''}></td>
+      <td><button class="btn danger" data-del style="padding:3px 8px">✕</button></td></tr>`;
+  }).join('');
+  summary();
+}
+function summary(){
+  const cur = rows.reduce((a, r) => a + r.price * r.qty, 0);
+  const exp = rows.reduce((a, r) => a + expOf(r) * r.qty, 0);
+  $('sCur').textContent = won(cur); $('sExtra').textContent = won(exp - cur);
+  $('sExp').textContent = won(exp); $('fTotal').textContent = won(exp);
+}
+$('tbody').addEventListener('change', e => {
+  const tr = e.target.closest('tr'); if(!tr) return;
+  const r = rows.find(x => x.id == tr.dataset.id), f = e.target.dataset.f; if(!r || !f) return;
+  if(f === 'sel' || f === 'locked') r[f] = e.target.checked;
+  else if(['qty','price','exp'].includes(f)){ r[f] = num(e.target.value); if(f === 'exp') r.locked = true; if(f === 'price' && !r.locked) r.exp = null; }
+  else r[f] = e.target.value;
+  save(); render();
+});
+$('tbody').addEventListener('click', e => {
+  if(!e.target.matches('[data-del]')) return;
+  const id = e.target.closest('tr').dataset.id; rows = rows.filter(x => x.id != id); save(); render();
+});
+
+/* ---------- 여유 배분 ---------- */
+$('mode').onchange = () => { $('valLabel').textContent = $('mode').value === 'fixed' ? '여유값 (원)' : '여유 비율 (%)'; };
+$('apply').onclick = () => {
+  const mode = $('mode').value, val = num($('val').value), dist = $('dist').value, unit = num($('unit').value);
+  const free = rows.filter(r => !r.locked && r.price > 0 && r.qty > 0);
+  if(!free.length){ status('배분할 품목이 없어요. 단가와 수량을 확인해 주세요.', 'err'); return; }
+  free.forEach(r => r.exp = r.price);
+  if(mode === 'round'){
+    free.forEach(r => { r.exp = Math.ceil(r.price * (1 + val / 100) / unit) * unit; });
+  } else if(val > 0){
+    if(dist === 'high'){
+      let left = val;
+      [...free].sort((a, b) => b.price - a.price).forEach(r => {
+        const cap = r.price * r.qty * 0.5, give = Math.min(left, cap);
+        r.exp = Math.max(r.price, Math.ceil((r.price + give / r.qty) / unit) * unit);
+        left -= (r.exp - r.price) * r.qty;
+      });
+    } else {
+      const w = r => dist === 'equal' ? 1 : r.price * r.qty, tot = free.reduce((a, r) => a + w(r), 0);
+      free.forEach(r => { r.exp = Math.max(r.price, Math.round((r.price + val * w(r) / tot / r.qty) / unit) * unit); });
+    }
+  }
+  save(); render();
+  const extra = free.reduce((a, r) => a + (r.exp - r.price) * r.qty, 0);
+  status(`여유 ${won(extra)}를 반영했어요.` + (mode === 'fixed' && val > 0 && Math.abs(extra - val) > 0 ? ` (금액 단위 때문에 목표 ${won(val)}와 차이가 있어요)` : ''), 'ok');
+};
+$('undo').onclick = () => { rows.filter(r => !r.locked).forEach(r => r.exp = null); save(); render(); status('고정하지 않은 품목의 여유를 되돌렸어요.', 'ok'); };
+
+/* ---------- 툴바 ---------- */
+$('addRow').onclick = () => { rows.push(newRow()); save(); render(); };
+$('clear').onclick = () => { if(rows.length && confirm('품목을 모두 지울까요?')){ rows = []; save(); render(); } };
+$('merge').onclick = () => {
+  const sel = rows.filter(r => r.sel);
+  if(sel.length < 2){ status('묶을 품목을 2개 이상 체크해 주세요.', 'err'); return; }
+  const name = prompt('묶은 품목의 이름', sel[0].name + ' 외 ' + (sel.length - 1) + '건'); if(name === null) return;
+  const total = sel.reduce((a, r) => a + expOf(r) * r.qty, 0), cur = sel.reduce((a, r) => a + r.price * r.qty, 0);
+  const first = rows.indexOf(sel[0]);
+  const merged = newRow({ name, qty:1, unit:'식', price:cur, exp:total, locked:true });
+  rows = rows.filter(r => !r.sel); rows.splice(Math.min(first, rows.length), 0, merged); save(); render();
+};
+$('download').onclick = () => {
+  if(!rows.length){ status('내려받을 품목이 없어요.', 'err'); return; }
+  const data = rows.map((r, i) => ({ '순번': i + 1, '내용': r.name, 'S2B물품번호': r.s2b, '규격': r.spec, '수량': r.qty, '단위': r.unit,
+    '예상단가': expOf(r), '예상금액': expOf(r) * r.qty, '수수료': '' }));
+  const ws = XLSX.utils.json_to_sheet(data), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '품목내역');
+  XLSX.writeFile(wb, '창현고_품목내역.xlsx');
+};
+
+/* ---------- 엑셀 읽기 ---------- */
+$('xlsFile').onchange = async e => {
+  const file = e.target.files[0]; if(!file) return;
+  try {
+    const wb = XLSX.read(await file.arrayBuffer(), { type:'array' });
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header:1, defval:'' });
+    const keys = { name:/품명|내용|물품명|품목|상품/, spec:/규격|사양|모델/, qty:/수량|개수/, unit:/단위/, price:/단가|가격/, s2b:/S2B|물품번호/i };
+    let hi = aoa.findIndex(row => row.some(c => keys.name.test(String(c))) && row.some(c => keys.qty.test(String(c))));
+    let col = {};
+    if(hi >= 0) aoa[hi].forEach((c, i) => { for(const k in keys) if(col[k] == null && keys[k].test(String(c))) col[k] = i; });
+    else { hi = 0; col = { name:0, spec:1, qty:2, unit:3, price:4 }; }
+    const out = aoa.slice(hi + 1).filter(r => String(r[col.name] ?? '').trim()).map(r => newRow({
+      name:String(r[col.name]).trim(), spec:String(r[col.spec] ?? ''), s2b:String(r[col.s2b] ?? ''),
+      qty:num(r[col.qty]) || 1, unit:String(r[col.unit] ?? '') || '개', price:num(r[col.price]) }));
+    if(!out.length) throw new Error('읽을 수 있는 품목이 없어요');
+    rows.push(...out); save(); render(); status(`엑셀에서 ${out.length}개 품목을 불러왔어요. 열이 맞는지 확인해 주세요.`, 'ok');
+  } catch(err){ status('엑셀을 읽지 못했어요: ' + err.message, 'err'); }
+  e.target.value = '';
+};
+
+/* ---------- 이미지 ---------- */
+function shrink(file){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, 1600 / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = img.width * s; c.height = img.height * s; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = rej; img.src = url;
+  });
+}
+async function addImages(files){
+  for(const f of files){ if(images.length >= 6){ status('이미지는 최대 6장까지예요.', 'err'); break; } if(f.type.startsWith('image/')) images.push(await shrink(f)); }
+  drawThumbs();
+}
+function drawThumbs(){
+  $('thumbs').innerHTML = images.map((s, i) => `<div><img src="${s}"><button data-i="${i}">×</button></div>`).join('');
+  $('runImg').disabled = !images.length;
+}
+$('thumbs').onclick = e => { if(e.target.dataset.i != null){ images.splice(+e.target.dataset.i, 1); drawThumbs(); } };
+$('drop').onclick = () => $('imgFile').click();
+$('imgFile').onchange = e => { addImages([...e.target.files]); e.target.value = ''; };
+document.addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])].filter(x => x.type.startsWith('image/')); if(f.length){ addImages(f); } });
+
+/* ---------- Gemini ---------- */
+$('apiKey').value = store.get('chpm_key', '');
+$('keySave').onclick = () => { store.set('chpm_key', $('apiKey').value.trim()); status('키를 이 브라우저에 저장했어요.', 'ok'); };
+const PROMPT = `쇼핑몰 장바구니 자료에서 구매 품목을 추출하세요. 배송비·할인·합계 줄은 제외합니다.
+JSON 배열로만 답하세요. 각 항목: {"name":품명, "spec":규격/옵션(없으면 ""), "qty":수량(숫자), "unit":단위(개,EA,권,세트 등, 모르면 "개"), "price":개당 단가(숫자, 원)}.
+수량이 2개 이상이고 금액이 합계로만 보이면 개당 단가로 나누세요.`;
+async function gemini(parts){
+  const key = $('apiKey').value.trim() || store.get('chpm_key', '');
+  if(!key){ status('먼저 Gemini API 키를 입력하고 저장해 주세요.', 'err'); return; }
+  status('분석 중이에요… 잠시만 기다려 주세요.');
+  try {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ contents:[{ parts:[{ text:PROMPT }, ...parts] }], generationConfig:{ responseMimeType:'application/json', temperature:0 } }) });
+    const j = await r.json(); if(!r.ok) throw new Error(j.error?.message || r.status);
+    const list = JSON.parse(j.candidates[0].content.parts[0].text);
+    const out = list.map(o => newRow({ name:String(o.name || ''), spec:String(o.spec || ''), qty:num(o.qty) || 1, unit:o.unit || '개', price:num(o.price) }));
+    if(!out.length) throw new Error('품목을 찾지 못했어요');
+    rows.push(...out); save(); render(); status(`${out.length}개 품목을 가져왔어요. 이름·수량·단가를 꼭 확인해 주세요.`, 'ok');
+  } catch(err){ status('분석 실패: ' + err.message, 'err'); }
+}
+$('runImg').onclick = () => gemini(images.map(s => ({ inline_data:{ mime_type:'image/jpeg', data:s.split(',')[1] } })));
+$('runTxt').onclick = () => { const t = $('txt').value.trim(); if(!t){ status('텍스트를 붙여넣어 주세요.', 'err'); return; } gemini([{ text:'[자료]\n' + t }]); };
+
+render();
+</script>
+</body>
+</html>
