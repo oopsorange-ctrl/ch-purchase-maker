@@ -71,6 +71,7 @@ tfoot td{font-weight:900;background:#f7f9fc;padding:10px}
 .keybox{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .keybox input{flex:1;min-width:200px}
 .keybox select{width:auto;flex:none}
+#keyMsg{font-size:13px;font-weight:600} #keyMsg.ok{color:var(--mint)} #keyMsg.err{color:var(--danger)}
 #status{font-size:13px;margin-top:8px;min-height:20px}
 #status.err{color:var(--danger)} #status.ok{color:var(--mint)}
 footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
@@ -108,6 +109,7 @@ footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
       </select>
       <input type="password" id="apiKey" placeholder="API 키 붙여넣기" autocomplete="off">
       <button class="btn ghost" id="keySave">키 저장</button>
+      <span id="keyMsg" role="status"></span>
       <a id="keyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="font-size:13px">키 발급받기 ↗</a>
     </div>
     <div class="grid3">
@@ -334,7 +336,18 @@ function showProvider(){
   $('apiKey').placeholder = PROVIDERS[provider].label + ' API 키 붙여넣기'; $('keyLink').href = PROVIDERS[provider].link;
 }
 $('provider').onchange = e => { provider = e.target.value; store.set('chpm_prov', provider); showProvider(); };
-$('keySave').onclick = () => { store.set('chpm_key_' + provider, $('apiKey').value.trim()); status(PROVIDERS[provider].label + ' 키를 이 브라우저에 저장했어요.', 'ok'); };
+$('keySave').onclick = () => {
+  const k = $('apiKey').value.trim();
+  if(!k){ keyMsg('키를 먼저 붙여넣어 주세요.', 'err'); return; }
+  store.set('chpm_key_' + provider, k);
+  const ok = keyOf(provider) === k;   // 실제로 저장됐는지 다시 읽어서 확인
+  keyMsg(ok ? '✓ ' + PROVIDERS[provider].label + ' 키를 저장했어요' : '저장하지 못했어요(브라우저가 저장을 막고 있어요). 이번 접속에서만 사용돼요.', ok ? 'ok' : 'err');
+};
+let keyTimer;
+function keyMsg(t, cls){
+  const el = $('keyMsg'); el.textContent = t; el.className = cls;
+  clearTimeout(keyTimer); keyTimer = setTimeout(() => { el.textContent = ''; }, 4000);
+}
 showProvider();
 const PROMPT = `쇼핑몰 장바구니 자료에서 구매 품목을 추출하세요. 배송비·할인·합계 줄은 제외합니다.
 JSON 배열로만 답하세요. 각 항목: {"name":품명, "spec":규격/옵션(없으면 ""), "qty":수량(숫자), "unit":단위(개,EA,권,세트 등, 모르면 "개"), "price":개당 단가(숫자, 원)}.
