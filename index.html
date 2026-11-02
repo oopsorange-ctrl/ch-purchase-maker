@@ -70,6 +70,7 @@ tfoot td{font-weight:900;background:#f7f9fc;padding:10px}
 .note{font-size:12.5px;color:var(--sub);margin-top:10px}
 .keybox{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .keybox input{flex:1;min-width:200px}
+.keybox select{width:auto;flex:none}
 #status{font-size:13px;margin-top:8px;min-height:20px}
 #status.err{color:var(--danger)} #status.ok{color:var(--mint)}
 footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
@@ -98,11 +99,16 @@ footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
 
   <section>
     <h2><em>1</em>자료 넣기</h2>
-    <p class="hint">세 가지 방법 중 편한 것을 쓰세요. 캡처·텍스트 분석에는 Gemini API 키가 필요해요(내 브라우저에만 저장됩니다).</p>
+    <p class="hint">세 가지 방법 중 편한 것을 쓰세요. 캡처·텍스트 분석에는 AI API 키가 필요해요. Gemini·ChatGPT·Claude 중 가진 것을 고르세요(키는 내 브라우저에만 저장됩니다).</p>
     <div class="keybox">
-      <input type="password" id="apiKey" placeholder="Gemini API 키 붙여넣기" autocomplete="off">
+      <select id="provider" aria-label="AI 선택">
+        <option value="gemini">Gemini</option>
+        <option value="openai">ChatGPT (OpenAI)</option>
+        <option value="claude">Claude (Anthropic)</option>
+      </select>
+      <input type="password" id="apiKey" placeholder="API 키 붙여넣기" autocomplete="off">
       <button class="btn ghost" id="keySave">키 저장</button>
-      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="font-size:13px">키 발급받기 ↗</a>
+      <a id="keyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="font-size:13px">키 발급받기 ↗</a>
     </div>
     <div class="grid3">
       <div class="box">
@@ -315,29 +321,68 @@ $('drop').onclick = () => $('imgFile').click();
 $('imgFile').onchange = e => { addImages([...e.target.files]); e.target.value = ''; };
 document.addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])].filter(x => x.type.startsWith('image/')); if(f.length){ addImages(f); } });
 
-/* ---------- Gemini ---------- */
-$('apiKey').value = store.get('chpm_key', '');
-$('keySave').onclick = () => { store.set('chpm_key', $('apiKey').value.trim()); status('키를 이 브라우저에 저장했어요.', 'ok'); };
+/* ---------- AI (Gemini / OpenAI / Claude) ---------- */
+const PROVIDERS = {
+  gemini: { label:'Gemini', link:'https://aistudio.google.com/apikey' },
+  openai: { label:'ChatGPT', link:'https://platform.openai.com/api-keys' },
+  claude: { label:'Claude', link:'https://console.anthropic.com/settings/keys' }
+};
+let provider = store.get('chpm_prov', 'gemini'); if(!PROVIDERS[provider]) provider = 'gemini';
+const keyOf = p => store.get('chpm_key_' + p, p === 'gemini' ? store.get('chpm_key', '') : '');
+function showProvider(){
+  $('provider').value = provider; $('apiKey').value = keyOf(provider);
+  $('apiKey').placeholder = PROVIDERS[provider].label + ' API 키 붙여넣기'; $('keyLink').href = PROVIDERS[provider].link;
+}
+$('provider').onchange = e => { provider = e.target.value; store.set('chpm_prov', provider); showProvider(); };
+$('keySave').onclick = () => { store.set('chpm_key_' + provider, $('apiKey').value.trim()); status(PROVIDERS[provider].label + ' 키를 이 브라우저에 저장했어요.', 'ok'); };
+showProvider();
 const PROMPT = `쇼핑몰 장바구니 자료에서 구매 품목을 추출하세요. 배송비·할인·합계 줄은 제외합니다.
 JSON 배열로만 답하세요. 각 항목: {"name":품명, "spec":규격/옵션(없으면 ""), "qty":수량(숫자), "unit":단위(개,EA,권,세트 등, 모르면 "개"), "price":개당 단가(숫자, 원)}.
 수량이 2개 이상이고 금액이 합계로만 보이면 개당 단가로 나누세요.`;
-async function gemini(parts){
-  const key = $('apiKey').value.trim() || store.get('chpm_key', '');
-  if(!key){ status('먼저 Gemini API 키를 입력하고 저장해 주세요.', 'err'); return; }
-  status('분석 중이에요… 잠시만 기다려 주세요.');
-  try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ contents:[{ parts:[{ text:PROMPT }, ...parts] }], generationConfig:{ responseMimeType:'application/json', temperature:0 } }) });
+/* 각 AI에게 같은 요청(프롬프트 + 텍스트 + 이미지)을 보내고, 답변 글자를 돌려준다 */
+async function askAI(key, text, imgs){
+  const b64 = s => s.split(',')[1];
+  if(provider === 'openai'){
+    const content = [{ type:'text', text:PROMPT + (text ? '\n[자료]\n' + text : '') }, ...imgs.map(s => ({ type:'image_url', image_url:{ url:s } }))];
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + key },
+      body: JSON.stringify({ model:'gpt-4o-mini', temperature:0, messages:[{ role:'user', content }] }) });
     const j = await r.json(); if(!r.ok) throw new Error(j.error?.message || r.status);
-    const list = JSON.parse(j.candidates[0].content.parts[0].text);
+    return j.choices[0].message.content;
+  }
+  if(provider === 'claude'){
+    const content = [...imgs.map(s => ({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64(s) } })), { type:'text', text:PROMPT + (text ? '\n[자료]\n' + text : '') }];
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-haiku-5-5', max_tokens:4096, temperature:0, messages:[{ role:'user', content }] }) });
+    const j = await r.json(); if(!r.ok) throw new Error(j.error?.message || r.status);
+    return j.content.map(c => c.text || '').join('');
+  }
+  const parts = [{ text:PROMPT }, ...(text ? [{ text:'[자료]\n' + text }] : []), ...imgs.map(s => ({ inline_data:{ mime_type:'image/jpeg', data:b64(s) } }))];
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(key)}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ contents:[{ parts }], generationConfig:{ responseMimeType:'application/json', temperature:0 } }) });
+  const j = await r.json(); if(!r.ok) throw new Error(j.error?.message || r.status);
+  return j.candidates[0].content.parts[0].text;
+}
+function parseList(t){   // 코드블록·설명이 섞여 와도 [ ... ] 부분만 뽑는다
+  const a = t.indexOf('['), b = t.lastIndexOf(']');
+  if(a < 0 || b < a) throw new Error('AI 답변을 읽지 못했어요');
+  return JSON.parse(t.slice(a, b + 1));
+}
+async function analyze(text, imgs){
+  const key = $('apiKey').value.trim() || keyOf(provider);
+  if(!key){ status('먼저 ' + PROVIDERS[provider].label + ' API 키를 입력하고 저장해 주세요.', 'err'); return; }
+  status(PROVIDERS[provider].label + '가 분석 중이에요… 잠시만 기다려 주세요.');
+  try {
+    const list = parseList(await askAI(key, text, imgs));
     const out = list.map(o => newRow({ name:String(o.name || ''), spec:String(o.spec || ''), qty:num(o.qty) || 1, unit:o.unit || '개', price:num(o.price) }));
     if(!out.length) throw new Error('품목을 찾지 못했어요');
     rows.push(...out); save(); render(); status(`${out.length}개 품목을 가져왔어요. 이름·수량·단가를 꼭 확인해 주세요.`, 'ok');
   } catch(err){ status('분석 실패: ' + err.message, 'err'); }
 }
-$('runImg').onclick = () => gemini(images.map(s => ({ inline_data:{ mime_type:'image/jpeg', data:s.split(',')[1] } })));
-$('runTxt').onclick = () => { const t = $('txt').value.trim(); if(!t){ status('텍스트를 붙여넣어 주세요.', 'err'); return; } gemini([{ text:'[자료]\n' + t }]); };
+$('runImg').onclick = () => analyze('', images);
+$('runTxt').onclick = () => { const t = $('txt').value.trim(); if(!t){ status('텍스트를 붙여넣어 주세요.', 'err'); return; } analyze(t, []); };
 
 render();
 </script>
