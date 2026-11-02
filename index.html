@@ -19,7 +19,8 @@ header{background:linear-gradient(135deg,var(--navy),var(--navy2));color:#fff;pa
 header .wrap{padding-bottom:0}
 .tag{display:inline-block;font-size:12px;letter-spacing:.12em;background:rgba(255,255,255,.14);padding:4px 10px;border-radius:99px;margin-bottom:12px}
 h1{margin:0 0 8px;font-size:clamp(26px,5vw,38px);font-weight:900}
-header p{margin:0;color:#c9d4ee;max-width:640px}
+header p{margin:0;color:#c9d4ee}
+@media(max-width:700px){.br-wide{display:none}}
 .summary{margin-top:-56px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .sum{background:var(--card);border-radius:14px;padding:16px 18px;box-shadow:0 6px 18px rgba(22,40,74,.1)}
 .sum small{color:var(--sub);font-size:13px}
@@ -79,7 +80,7 @@ footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
   <div class="wrap">
     <span class="tag">PURCHASE DRAFT · 창현고등학교</span>
     <h1>창현고 물품 품의 메이커</h1>
-    <p>장바구니 캡처, 쇼핑몰 복사 텍스트, 엑셀 파일을 품목내역으로 정리하고 가격 변동에 대비한 여유분까지 배분해 드려요.</p>
+    <p>장바구니 캡처, 쇼핑몰 복사 텍스트, 엑셀 파일을 품목내역으로 정리하고<br class="br-wide"> 가격 변동에 대비한 여유분까지 배분해 드려요.</p>
   </div>
 </header>
 
