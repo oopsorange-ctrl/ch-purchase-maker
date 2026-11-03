@@ -161,7 +161,7 @@ footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
         <tfoot><tr><td colspan="9" style="text-align:right">예정 합계</td><td class="amt" id="fTotal">0원</td><td colspan="2"></td></tr></tfoot>
       </table>
     </div>
-    <p class="note">다운로드한 엑셀은 S2B 품목내역 화면의 <b>파일 ↑</b> 버튼으로 올리세요. 수수료 열은 비워서 내려가요.</p>
+    <p class="note">다운로드한 <b>품목내역(통합).xls</b>는 에듀파인 품목내역 양식(내용·규격·단위·수량·예상단가)과 같은 형태라 그대로 업로드할 수 있어요.</p>
   </section>
   <footer>창현고 물품 품의 메이커 · 입력한 자료는 이 브라우저에만 저장돼요</footer>
 </div>
@@ -266,11 +266,11 @@ $('merge').onclick = () => {
 };
 $('download').onclick = () => {
   if(!rows.length){ status('내려받을 품목이 없어요.', 'err'); return; }
-  const data = rows.map((r, i) => ({ '순번': i + 1, '내용': r.name, 'S2B물품번호': r.s2b, '규격': r.spec, '수량': r.qty, '단위': r.unit,
-    '예상단가': expOf(r), '예상금액': expOf(r) * r.qty, '수수료': '' }));
-  const ws = XLSX.utils.json_to_sheet(data), wb = XLSX.utils.book_new();
+  // 에듀파인 업로드 양식('품목내역(통합).xls')과 같은 열 순서·시트 이름·.xls 형식
+  const data = rows.map(r => ({ '내용': r.name, '규격': r.spec, '단위': r.unit, '수량': r.qty, '예상단가': expOf(r) }));
+  const ws = XLSX.utils.json_to_sheet(data, { header:['내용', '규격', '단위', '수량', '예상단가'] }), wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '품목내역');
-  XLSX.writeFile(wb, '창현고_품목내역.xlsx');
+  XLSX.writeFile(wb, '품목내역(통합).xls', { bookType:'xls' });
 };
 
 /* ---------- 엑셀 읽기 ---------- */
