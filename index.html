@@ -100,13 +100,8 @@ footer{text-align:center;color:var(--sub);font-size:12.5px;margin-top:34px}
 
   <section>
     <h2><em>1</em>자료 넣기</h2>
-    <p class="hint">세 가지 방법 중 편한 것을 쓰세요. 캡처·텍스트 분석에는 AI API 키가 필요해요. Gemini·ChatGPT·Claude 중 가진 것을 고르세요(키는 내 브라우저에만 저장됩니다).</p>
+    <p class="hint">세 가지 방법 중 편한 것을 쓰세요. 캡처·텍스트 분석에는 무료로 발급받을 수 있는 Gemini API 키가 필요해요(키는 내 브라우저에만 저장됩니다).</p>
     <div class="keybox">
-      <select id="provider" aria-label="AI 선택">
-        <option value="gemini">Gemini</option>
-        <option value="openai">ChatGPT (OpenAI)</option>
-        <option value="claude">Claude (Anthropic)</option>
-      </select>
       <input type="password" id="apiKey" placeholder="API 키 붙여넣기" autocomplete="off">
       <button class="btn ghost" id="keySave">키 저장</button>
       <span id="keyMsg" role="status"></span>
@@ -323,19 +318,14 @@ $('drop').onclick = () => $('imgFile').click();
 $('imgFile').onchange = e => { addImages([...e.target.files]); e.target.value = ''; };
 document.addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])].filter(x => x.type.startsWith('image/')); if(f.length){ addImages(f); } });
 
-/* ---------- AI (Gemini / OpenAI / Claude) ---------- */
-const PROVIDERS = {
-  gemini: { label:'Gemini', link:'https://aistudio.google.com/apikey' },
-  openai: { label:'ChatGPT', link:'https://platform.openai.com/api-keys' },
-  claude: { label:'Claude', link:'https://console.anthropic.com/settings/keys' }
-};
-let provider = store.get('chpm_prov', 'gemini'); if(!PROVIDERS[provider]) provider = 'gemini';
-const keyOf = p => store.get('chpm_key_' + p, p === 'gemini' ? store.get('chpm_key', '') : '');
+/* ---------- AI (Gemini 전용: 무료로 쓸 수 있어서) ---------- */
+const PROVIDERS = { gemini: { label:'Gemini', link:'https://aistudio.google.com/apikey' } };
+const provider = 'gemini';
+const keyOf = p => store.get('chpm_key_' + p, store.get('chpm_key', ''));
 function showProvider(){
-  $('provider').value = provider; $('apiKey').value = keyOf(provider);
+  $('apiKey').value = keyOf(provider);
   $('apiKey').placeholder = PROVIDERS[provider].label + ' API 키 붙여넣기'; $('keyLink').href = PROVIDERS[provider].link;
 }
-$('provider').onchange = e => { provider = e.target.value; store.set('chpm_prov', provider); showProvider(); };
 $('keySave').onclick = () => {
   const k = $('apiKey').value.trim();
   if(!k){ keyMsg('키를 먼저 붙여넣어 주세요.', 'err'); return; }
@@ -352,63 +342,36 @@ showProvider();
 const PROMPT = `쇼핑몰 장바구니 자료에서 구매 품목을 추출하세요. 배송비·할인·합계 줄은 제외합니다.
 JSON 배열로만 답하세요. 각 항목: {"name":품명, "spec":규격/옵션(없으면 ""), "qty":수량(숫자), "unit":단위(개,EA,권,세트 등, 모르면 "개"), "price":개당 단가(숫자, 원)}.
 수량이 2개 이상이고 금액이 합계로만 보이면 개당 단가로 나누세요.`;
-/* 모델 이름을 코드에 박아 두지 않는다: 키로 "쓸 수 있는 모델 목록"을 물어봐서 가장 최신의 가벼운 모델을 자동 선택.
-   (목록 조회가 실패하면 아래 fallback 이름을 쓴다) */
-const FALLBACK = { gemini:'gemini-flash-latest', openai:'gpt-4o-mini', claude:'claude-haiku-4-5' };
-const modelCache = {};
+const FALLBACK = 'gemini-flash-latest';
+let cachedModel = '';
 const verOf = id => (id.match(/\d+(?:\.\d+)?/g) || []).map(Number);   // 'gemini-3.5-flash' → [3.5]
 const newest = (ids) => ids.sort((a, b) => { const x = verOf(a), y = verOf(b);
   for(let i = 0; i < Math.max(x.length, y.length); i++){ const d = (y[i] || 0) - (x[i] || 0); if(d) return d; } return 0; })[0];
+/* 모델 이름을 코드에 박아 두지 않는다: 키로 "쓸 수 있는 모델 목록"을 물어봐서 가장 최신 Flash를 자동 선택 */
 async function pickModel(key){
-  if(modelCache[provider]) return modelCache[provider];
+  if(cachedModel) return cachedModel;
   let id = '';
   try {
-    if(provider === 'gemini'){
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(key)}`);
-      const j = await r.json(); if(!r.ok) throw 0;
-      id = newest(j.models.filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
-        .map(m => m.name.replace('models/', '')).filter(n => /^gemini-[\d.]+-flash$/.test(n)));
-    } else if(provider === 'openai'){
-      const r = await fetch('https://api.openai.com/v1/models', { headers:{ 'Authorization':'Bearer ' + key } });
-      const j = await r.json(); if(!r.ok) throw 0;
-      id = newest(j.data.map(m => m.id).filter(n => /^gpt-[\d.]+-mini$/.test(n)));
-    } else {
-      const r = await fetch('https://api.anthropic.com/v1/models?limit=100', { headers:{ 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' } });
-      const j = await r.json(); if(!r.ok) throw 0;
-      id = j.data.filter(m => /haiku/.test(m.id)).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))[0]?.id;   // 가장 최근에 나온 Haiku
-    }
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(key)}`);
+    const j = await r.json(); if(!r.ok) throw 0;
+    id = newest(j.models.filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map(m => m.name.replace('models/', '')).filter(n => /^gemini-[\d.]+-flash$/.test(n)));
   } catch(e){}
-  return modelCache[provider] = id || FALLBACK[provider];
+  return cachedModel = id || FALLBACK;
 }
-/* 각 AI에게 같은 요청(프롬프트 + 텍스트 + 이미지)을 보내고, 답변 글자를 돌려준다 */
+/* Gemini에게 요청(프롬프트 + 텍스트 + 이미지)을 보내고, 답변 글자를 돌려준다 */
 async function askAI(key, text, imgs){
-  const b64 = s => s.split(',')[1];
   const model = await pickModel(key);
   try {
-    return await callAI(key, model, text, imgs, b64);
+    return await callAI(key, model, text, imgs);
   } catch(err){
-    // 고른 모델이 막혀 있으면 목록 기억을 지우고 fallback 모델로 한 번 더 시도
-    if(model !== FALLBACK[provider]){ delete modelCache[provider]; modelCache[provider] = FALLBACK[provider]; return await callAI(key, FALLBACK[provider], text, imgs, b64); }
+    // 고른 모델이 막혀 있으면 fallback 모델로 한 번 더 시도
+    if(model !== FALLBACK){ cachedModel = FALLBACK; return await callAI(key, FALLBACK, text, imgs); }
     throw err;
   }
 }
-async function callAI(key, model, text, imgs, b64){
-  if(provider === 'openai'){
-    const content = [{ type:'text', text:PROMPT + (text ? '\n[자료]\n' + text : '') }, ...imgs.map(s => ({ type:'image_url', image_url:{ url:s } }))];
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + key },
-      body: JSON.stringify({ model, messages:[{ role:'user', content }] }) });
-    const j = await r.json(); if(!r.ok) throw new Error(j.error?.message || r.status);
-    return j.choices[0].message.content;
-  }
-  if(provider === 'claude'){
-    const content = [...imgs.map(s => ({ type:'image', source:{ type:'base64', media_type:'image/jpeg', data:b64(s) } })), { type:'text', text:PROMPT + (text ? '\n[자료]\n' + text : '') }];
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST', headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({ model, max_tokens:4096, messages:[{ role:'user', content }] }) });
-    const j = await r.json(); if(!r.ok) throw new Error(j.error?.message || r.status);
-    return j.content.map(c => c.text || '').join('');
-  }
+async function callAI(key, model, text, imgs){
+  const b64 = s => s.split(',')[1];
   const parts = [{ text:PROMPT }, ...(text ? [{ text:'[자료]\n' + text }] : []), ...imgs.map(s => ({ inline_data:{ mime_type:'image/jpeg', data:b64(s) } }))];
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, {
     method:'POST', headers:{'Content-Type':'application/json'},
